@@ -27,9 +27,23 @@ library(lubridate)
 source("llamada_api_thb_borme.R")
 source("llamada_api_thb_borme_fechas.R")
 source("llamada_api_thb_noticias.R")
-source("llamada_api_thb_fichas.R")
+#source("llamada_api_thb_fichas.R")
 source("llamada_api_thb_twitter.R")
 source("llamada_api_thb_contratacionesEstado.R")
+
+
+#==================
+# CENSO EMPRESAS
+#==================
+# CENSO
+df_censo <- read.csv("censo_Ermua.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+
+#====================
+# REFERENCIA CNAES
+#====================
+df_cnae <- read.csv("referencia_CNAEs.csv", header = TRUE, sep = ";")
+df_cnae <- df_cnae[,c(1,3)]
+df_cnae$completo <- paste(df_cnae[,1],df_cnae[,2], sep = " ")
 
 
 ######################################################
@@ -145,7 +159,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                          
                                          tags$head(tags$script(src = "mensajes.js")),
                                          actionButton("inicio_carga_DHB", "Cargar datos")
-                                ),
+                                ),width = 3,
                             ),
                             
                             mainPanel(
@@ -249,7 +263,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                          
                                          # Botón descarga noticias
                                          downloadButton("descarga_noticias", "Descarga datos Noticias en .csv")
-                                ),
+                                ),width = 3,
                             ),
                             
                             # Panel de resultados
@@ -267,84 +281,44 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                         )
                ),
                
-               tabPanel("Fichas de empresas",
+               tabPanel("Censo de empresas",
                         sidebarLayout(
-                            
-                            # Menú de datos
                             sidebarPanel(
-                                
-                                # Información general para el usuario
-                                helpText(style = "font-size: 16px; text-align:center; font-weight: bold; padding-bottom: 10px;",
-                                         "INFORMACIÓN GENERAL", ),
-                                
-                                helpText(style = "font-size: 14px; padding-bottom: 10px;",
-                                         "Selecciona:",
-                                         br(), HTML('&nbsp;'), HTML('&nbsp;'),
-                                         "1) Intervalo de fechas.",
-                                         br(), HTML('&nbsp;'), HTML('&nbsp;'),
-                                         "2) (opcional) Variables por las que hacer el filtrado."),
-                                
-                                HTML('<hr style="size="30";">'),
-                                
-                                # FILTRADO POR INTERVALO DE FECHAS
-                                fluidRow(style='padding-bottom: 18px; text-align:center;',
-                                         
-                                         helpText(style = "font-size: 16px; text-align:center; font-weight: bold; padding-bottom: 10px;",
-                                                  "INSERCIÓN DE DATOS", ),
+                                dateRangeInput("fechas","Filtro por intervalo de fechas",start = "1960-01-01", end = Sys.Date()),
+                                textInput("palabra_clave", "Búsqueda por palabra clave"),
+                                selectInput("calle", "Filtro por ubicación",
+                                            c("Todas",gsub("[(].*","",gsub(",.*","",unique(df_censo$`Domicilio_social`)))[order(gsub(",.*","",unique(df_censo$`Domicilio_social`)))])),
+                                sliderInput("empleados", "Filtro por rango de empleados",0,max(na.omit(as.numeric(unique(gsub("[ (].*","",df_censo$Empleados))))),c(0,100),step = 1
                                 ),
-                                
-                                # VARIABLES POR LAS QUE FILTRAR
-                                fluidRow(style='padding-bottom: 10px; text-align:center;',
-                                         helpText(style = "font-size: 14px;",
-                                                  "3) Selección de filtros"),
+                                selectInput("div_cnae", "Filtro por CNAE",
+                                            #c("Todos",substring(unique(df_censo$CNAE),1,2)[order(substring(unique(df_censo$CNAE),1,2))][-1])
+                                            c("Todos",df_cnae$completo), multiple = TRUE, selected = "Todos"
                                 ),
-                                
-                                fluidRow(style='padding-left: 10px; text-align:left;',
-                                         
-                                         #Empresa extinguidas
-                                         checkboxInput("extinguidas", "Ocultar extinguidas",
-                                                       value = TRUE),
-                                ),
-                                fluidRow(style='padding-bottom: 18px; text-align:center;',
-                                         
-                                         # Búsqueda por palabra_clave
-                                         textInput("palabra_clave_fichas", "Búsqueda por palabra clave"),
-                                         
-                                         # Botón descarga noticias
-                                         downloadButton("descarga_fichas", "Descarga datos Fichas empresas en .csv")
-                                ),
+                                #div(style = "color: black; font-size:14px; font-weight: bold;","Filtro redes sociales"),
+                                radioButtons("RRSS", "Filtro por redes sociales",
+                                             choices = list("Con RRSS" = 1, "Sin RRSS" = 2,
+                                                            "Todas" = 3), selected = 3),
+                                div(style = "color: black; font-size:14px; font-weight: bold;","Filtro empresas extintas"),
+                                checkboxInput("extinguidas", "Ocultar empresas extintas", value = TRUE, width = NULL),
+                                downloadButton("downloadDatacenso_csv", "Descargar CSV"),
+                                width = 3,
                             ),
                             
-                            # Panel de resultados
                             mainPanel(
-                                
-                                tabsetPanel(id = "tabs_fichas",
-                                            tabPanel(id = "tab_general",
-                                                     span("General",title="Contiene todos los datos de las fichas de las empresas existentes"),   #Con span genero un popup de ayuda.
-                                                     
-                                                     # Panel DATAFRAME
+                                tabsetPanel(id = "tabs_censo",
+                                            tabPanel(id = "censo","Censo de empresas",
                                                      fluidRow(
-                                                         dataTableOutput("tabla_fichas_general"),
+                                                         leafletOutput("mapa_censo", height = 500)
+                                                     ),
+                                                     br(),
+                                                     fluidRow(
+                                                         dataTableOutput("tabla_censo")
                                                      )
-                                            ),
-                                            
-                                            tabPanel(id = "Empresas geolocalizadas",
-                                                     span("Empresas geolocalizadas",title="Contiene los datos de las empresas geolocalizadas"),   #Con span genero un popup de ayuda.
-                                            
-                                                    # Panel MAPA
-                                                    fluidRow(style='padding-bottom: 25px;',
-                                                             leafletOutput("mapa_fichas"),
-                                                    ),
-                                                    
-                                                    # Panel DATAFRAME
-                                                    fluidRow(
-                                                        dataTableOutput("tabla_fichas"),
-                                                    )
                                             )
                                 )
                             )
                         )
-               ),
+               ), #Cierre panel censo
                
                tabPanel("Redes sociales",
                         sidebarLayout(
@@ -390,7 +364,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                          
                                          # Botón descarga noticias
                                          downloadButton("descarga_redes", "Descarga datos análisis redes sociales en .csv")
-                                ),
+                                ),width = 3,
                             ),
                             
                             # Panel de resultados
@@ -553,7 +527,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                          
                                          # Botón descarga noticias
                                          #downloadButton("descarga_general", "Descarga datos Panel general en .csv")
-                                ),
+                                ),width = 3,
                             ),
                             
                             # Panel de resultados
@@ -572,11 +546,11 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                         dataTableOutput("tabla_general_noticias")
                                     ),
                                     
-                                    fluidRow(
-                                        helpText(style = "font-size: 16px; text-align:center; padding-bottom: 10px; padding-top: 10px; font-weight: bold; color: black;",
-                                                 "TABLA FICHAS EMPRESAS"),
-                                        dataTableOutput("tabla_general_fichas")
-                                    ),
+                                    #fluidRow(
+                                    #    helpText(style = "font-size: 16px; text-align:center; padding-bottom: 10px; padding-top: 10px; font-weight: bold; color: black;",
+                                    #             "TABLA FICHAS EMPRESAS"),
+                                    #    dataTableOutput("tabla_general_fichas")
+                                    #),
                                     
                                     fluidRow(
                                         helpText(style = "font-size: 16px; text-align:center; padding-bottom: 10px; padding-top: 10px; font-weight: bold; color: black;",
@@ -591,6 +565,10 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                 )
                             )
                         )
+               ),
+               tags$style(type = 'text/css',
+                          '.dataTables_scrollBody {transform:rotateX(180deg);}',
+                          '.dataTables_scrollBody table {transform:rotateX(180deg);}'
                )
     )
 )
@@ -986,49 +964,6 @@ server <- function(input, output, session) {
         return(df_filtrado_noticias)
     })
     
-    # Filtrado datos Fichas + llamada API
-    datos_filtrados_fichas <- reactive({
-        
-        df <- llamada_api_fichas()  #Llamada a API
-        
-        #Filtro radio button empresas extinguidas
-        if(input$extinguidas){
-            #Ocultar empresas extinguidas
-            df <- df[-grep("(extinguida)",df$Empresa), ]
-        }
-        
-        # Manejo de error: "inexistencia de datos para el intervalo de fechas seleccionado" de cara al usuario
-        shiny::validate(
-            need(df != 0, "¡Aviso!\nNo existen datos disponibles para el intervalo de fechas seleccionado.\nSelecciona otro intervalo si lo deseas.")
-        )
-        
-        
-        #Selección palabra clave en función de selección tab menú
-        if(input$menu == "Panel general"){
-            palabra_clave <- input$palabra_clave_general
-        }else{
-            palabra_clave <- input$palabra_clave_fichas
-        }
-        
-        # FILTRADO POR PALABRA CLAVE
-        # Si detecta dato introducido por el usuario en palabra clave filtra la búsqueda y devuelve los valores.
-        if(!palabra_clave == ""){
-            #Filtrado por búsqueda de palabras clave. Se realiza máscara OR con resultados booleanos.
-            filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, palabra_clave, df, ignore.case = T)),1,any)
-        }else{
-            filtrado_palabra_clave <- !(df$Empresa %in% "-")
-        }
-        
-        df_filtrado_fichas <- na.omit(subset(df, (filtrado_palabra_clave)))
-        
-        # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
-        shiny::validate(
-            need(nrow(df_filtrado_fichas) != 0,
-                 "¡Aviso!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo deseas.")
-        )
-        
-        return(df_filtrado_fichas)
-    })
     
     # Filtrado datos TWITTER PALABRA CLAVE + llamada API
     datos_filtrados_twitter <- reactive({
@@ -1299,33 +1234,6 @@ server <- function(input, output, session) {
                                                                               radius = radio_ref)
     })
     
-    
-    # Generación mapa Leaflet FICHAS EMPRESAS
-    output$mapa_fichas <- renderLeaflet({
-        
-        df_filtrados <- datos_filtrados_fichas()
-        
-        df_filtrados <- subset(df_filtrados, !(df_filtrados$Latitud %in% "-"))
-        
-        # Filtrado por selección de registro en la tabla
-        filtrado_tabla <- input$tabla_fichas_rows_selected
-        if(length(filtrado_tabla)){
-            df_filtrados <-  df_filtrados[filtrado_tabla, , drop = F]
-        }
-        
-        latitud <- as.numeric(df_filtrados$Latitud)
-        longitud <- as.numeric(df_filtrados$Longitud)
-        
-        #Inicialización popup
-        popup <- paste(df_filtrados$Empresa,df_filtrados$Actividad, sep = "\n")
-        
-        
-        #Creación mapa
-        leaflet() %>% addTiles() %>% addMarkers(lng = longitud, 
-                                                lat = latitud,
-                                                popup = popup)
-    })
-    
     # Generación mapa Leaflet USUARIOS TWITTER
     output$mapa_redes <- renderLeaflet({
         
@@ -1453,7 +1361,7 @@ server <- function(input, output, session) {
                                                     scrollCollapse=TRUE,
                                                     displayStart = pag_anterior,
                                                     fixedHeader = TRUE,
-                                                    dom = 'Bfrtip', 
+                                                    dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            selection = list(mode = "multiple",
                                             selected = filtrado_tabla,   # Selección de las filas de la tabla seleccionadas por el usuario.
@@ -1506,7 +1414,7 @@ server <- function(input, output, session) {
                                                     scrollCollapse=TRUE,
                                                     displayStart = pag_anterior,
                                                     fixedHeader = TRUE,
-                                                    dom = 'Bfrtip', 
+                                                    dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            selection = list(mode = "multiple",
                                             selected = filtrado_tabla,   # Selección de las filas de la tabla seleccionadas por el usuario.
@@ -1560,7 +1468,7 @@ server <- function(input, output, session) {
                                                     scrollCollapse=TRUE,
                                                     displayStart = pag_anterior,
                                                     fixedHeader = TRUE,
-                                                    dom = 'Bfrtip', 
+                                                    dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            selection = list(mode = "multiple",
                                             selected = filtrado_tabla,   # Selección de las filas de la tabla seleccionadas por el usuario.
@@ -1613,7 +1521,7 @@ server <- function(input, output, session) {
                                                     scrollCollapse=TRUE,
                                                     displayStart = pag_anterior,
                                                     fixedHeader = TRUE,
-                                                    dom = 'Bfrtip', 
+                                                    dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            selection = list(mode = "multiple",
                                             selected = filtrado_tabla,   # Selección de las filas de la tabla seleccionadas por el usuario.
@@ -1676,7 +1584,7 @@ server <- function(input, output, session) {
                                                     scrollCollapse=TRUE,
                                                     displayStart = pag_anterior,
                                                     fixedHeader = TRUE,
-                                                    dom = 'Bfrtip', 
+                                                    dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            selection = list(mode = "multiple",
                                             selected = filtrado_tabla,   # Selección de las filas de la tabla seleccionadas por el usuario.
@@ -1705,7 +1613,7 @@ server <- function(input, output, session) {
                                                     scrollX=TRUE, 
                                                     scrollCollapse=TRUE,
                                                     fixedHeader = TRUE,
-                                                    dom = 'Bfrtip', 
+                                                    dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -1730,7 +1638,7 @@ server <- function(input, output, session) {
                                                                              scrollx = TRUE,
                                                                              scrollCollapse = T,
                                                                              fixedHeader = TRUE,
-                                                                             dom = 'Bfrtip', 
+                                                                             dom = 'lBfrtip', 
                                                                              buttons = c('copy', 'csv', 'excel', 'pdf')),
                                             escape = F)
         return(tabla_noticias_general)
@@ -1758,7 +1666,7 @@ server <- function(input, output, session) {
                                                   scrollX=TRUE, 
                                                   scrollCollapse=TRUE,
                                                   fixedHeader = TRUE,
-                                                  dom = 'Bfrtip', 
+                                                  dom = 'lBfrtip', 
                                                   buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -1819,7 +1727,7 @@ server <- function(input, output, session) {
                                                    scrollX=TRUE, 
                                                    scrollCollapse=TRUE,
                                                    fixedHeader = TRUE,
-                                                   dom = 'Bfrtip', 
+                                                   dom = 'lBfrtip', 
                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -1844,7 +1752,7 @@ server <- function(input, output, session) {
                                                  scrollX=TRUE, 
                                                  scrollCollapse=TRUE,
                                                  fixedHeader = TRUE,
-                                                 dom = 'Bfrtip', 
+                                                 dom = 'lBfrtip', 
                                                  buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -1852,58 +1760,6 @@ server <- function(input, output, session) {
         
     })
     
-    ####
-    # PANEL FICHAS
-    ####
-    
-    output$tabla_fichas_general <- renderDataTable({
-        
-        fichas <- datos_filtrados_fichas()
-        
-        #Nombres de filas igual a ID entero ascendente
-        #Sí no hay datos no modificar el nombre de las filas
-        if(nrow(fichas) > 0){
-            row.names(fichas) <- seq(1,nrow(fichas))
-        }
-        
-        #Límite visualización registros tabla
-        tabla <- datatable(fichas, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
-                                                  columnDefs = list(list(className = 'dt-center', targets = "_all")),
-                                                  scrollX=TRUE, 
-                                                  scrollCollapse=TRUE,
-                                                  fixedHeader = TRUE,
-                                                  dom = 'Bfrtip', 
-                                                  buttons = c('copy', 'csv', 'excel', 'pdf')),
-                           escape = FALSE)
-        
-        return(tabla)
-        
-    })
-    
-    #Generación dataframe tabla FICHAS EMPRESAS GEOLOCALIZADAS
-    output$tabla_fichas <- renderDataTable({
-        
-        fichas <- subset(datos_filtrados_fichas(), !(datos_filtrados_fichas()$Latitud %in% "-"))
-        
-        #Nombres de filas igual a ID entero ascendente
-        #Sí no hay datos no modificar el nombre de las filas
-        if(nrow(fichas) > 0){
-            row.names(fichas) <- seq(1,nrow(fichas))
-        }
-        
-        #Límite visualización registros tabla
-        tabla <- datatable(fichas, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
-                                                  columnDefs = list(list(className = 'dt-center', targets = "_all")),
-                                                  scrollX=TRUE, 
-                                                  scrollCollapse=TRUE,
-                                                  fixedHeader = TRUE,
-                                                  dom = 'Bfrtip', 
-                                                  buttons = c('copy', 'csv', 'excel', 'pdf')),
-                           escape = FALSE)
-        
-        return(tabla)
-        
-    })
     
     #Generación dataframe tabla FICHAS EMPRESAS GEOLOCALIZADAS
     output$tabla_redes <- renderDataTable({
@@ -1952,7 +1808,7 @@ server <- function(input, output, session) {
                                                   scrollX=TRUE, 
                                                   scrollCollapse=TRUE,
                                                   fixedHeader = TRUE,
-                                                  dom = 'Bfrtip', 
+                                                  dom = 'lBfrtip', 
                                                   buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -2010,7 +1866,7 @@ server <- function(input, output, session) {
                                                    scrollX=TRUE, 
                                                    scrollCollapse=TRUE,
                                                    fixedHeader = TRUE,
-                                                   dom = 'Bfrtip', 
+                                                   dom = 'lBfrtip', 
                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -2064,7 +1920,7 @@ server <- function(input, output, session) {
                                                    scrollX=TRUE, 
                                                    scrollCollapse=TRUE,
                                                    fixedHeader = TRUE,
-                                                   dom = 'Bfrtip', 
+                                                   dom = 'lBfrtip', 
                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -2117,7 +1973,7 @@ server <- function(input, output, session) {
                                                    scrollX=TRUE, 
                                                    scrollCollapse=TRUE,
                                                    fixedHeader = TRUE,
-                                                   dom = 'Bfrtip', 
+                                                   dom = 'lBfrtip', 
                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -2145,7 +2001,7 @@ server <- function(input, output, session) {
                                                           scrollX=TRUE, 
                                                           scrollCollapse=TRUE,
                                                           fixedHeader = TRUE,
-                                                          dom = 'Bfrtip', 
+                                                          dom = 'lBfrtip', 
                                                           buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         
@@ -2247,17 +2103,6 @@ server <- function(input, output, session) {
         }
     )
     
-    # DESCARGA DATOS FICHAS
-    output$descarga_fichas <- downloadHandler(
-        
-        filename = function() {
-            paste("descarga_fichasEmpresa.csv", sep="")
-        },
-        content = function(file) {
-            write.csv(datos_filtrados_fichas(), file, eol="\n", sep = ",")
-        }
-    )
-    
     # DESCARGA DATOS TWITTER
     output$descarga_redes <- downloadHandler(
         
@@ -2279,6 +2124,217 @@ server <- function(input, output, session) {
             write.csv(datos_filtrados_contratacionesEstado(), file, eol="\n", sep = ",")
         }
     )
+    
+    
+    
+    # =================================================================
+    # =================================================================
+    # =================================================================
+    # CENSO DE EMRPESAS
+    # =================================================================
+    # =================================================================
+    # =================================================================
+    
+    datos_filtrado <- reactive({
+        
+        df <- df_censo
+        
+        # 1) Filtro por intervalo de fechas
+        df <- df[as.Date(as.character(df$`Fecha_constitución`), "%d/%m/%Y") >= as.Date(input$fechas[1]) &
+                     as.Date(as.character(df$`Fecha_constitución`)) <= as.Date(input$fechas[2]) |
+                     df$`Fecha_constitución` == "-",]
+        
+        # 2) Filtro por num empleados
+        # Lógica selección empleados == 2- cuando input empleados == 0
+        inicial_0 <- "-"
+        df_sin_info_empleados <- df[df$Empleados == inicial_0,] 
+        df_con_info_empleados <- df[df$Empleados != inicial_0,]
+        df_con_info_empleados  <- df_con_info_empleados[as.numeric(gsub("[ (].*","",df_con_info_empleados$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df_con_info_empleados$Empleados)) <= input$empleados[2],]
+        df <- rbind(df_con_info_empleados,df_sin_info_empleados)
+
+        
+        #df <- na.omit(df)
+        #print(nrow(df))
+        # 3) Filtro por división CNAE
+        # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+        shiny::validate(
+            need(!is.null(input$div_cnae),
+                 "Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
+        )
+        
+        if(input$div_cnae == "Todos"){  
+            df <- df
+        }else if(length(input$div_cnae) > 1){
+            codigos_a_extraer <- c()
+            for(i in 1:length(input$div_cnae)){
+                if(grepl("[A-Z]",substring(input$div_cnae[i],1,1))){
+                    
+                    pos_letra_demandada <- grep(substring(input$div_cnae[i],1,1),letters,ignore.case = TRUE)
+                    codigos_2 <- gsub("([0-9]+).*$", "\\1",
+                                      df_cnae$completo[c((grep(letters[pos_letra_demandada],df_cnae$COD_CNAE2009,ignore.case = TRUE) + 1):
+                                                             (grep(letters[pos_letra_demandada + 1],df_cnae$COD_CNAE2009,ignore.case = TRUE) - 1)
+                                      )]
+                    )
+                }else{
+                    codigo_seleccionado <- gsub("([0-9]+).*$", "\\1", input$div_cnae[i])
+                    numero_de_carct <- nchar(codigo_seleccionado)
+                    codigos_2 <- gsub("([0-9]+).*$", "\\1",
+                                      df_cnae$completo[grep(codigo_seleccionado,substring(df_cnae$COD_CNAE2009,1,numero_de_carct))]
+                    )
+                }
+                codigos_a_extraer <- c(codigos_a_extraer, codigos_2)
+            }
+            df <- df[which(gsub("([0-9]+).*$", "\\1",df$CNAE) %in% codigos_a_extraer),]
+            
+        }else{
+            if(grepl("[A-Z]",substring(input$div_cnae,1,1))){
+                
+                pos_letra_demandada <- grep(substring(input$div_cnae,1,1),letters,ignore.case = TRUE)
+                codigos_a_extraer <- gsub("([0-9]+).*$", "\\1",
+                                          df_cnae$completo[c((grep(letters[pos_letra_demandada],df_cnae$COD_CNAE2009,ignore.case = TRUE) + 1):
+                                                                 (grep(letters[pos_letra_demandada + 1],df_cnae$COD_CNAE2009,ignore.case = TRUE) - 1)
+                                          )]
+                )
+            }else{
+                codigo_seleccionado <- gsub("([0-9]+).*$", "\\1", input$div_cnae)
+                numero_de_carct <- nchar(codigo_seleccionado)
+                codigos_a_extraer <- gsub("([0-9]+).*$", "\\1",
+                                          df_cnae$completo[grep(codigo_seleccionado,substring(df_cnae$COD_CNAE2009,1,numero_de_carct))]
+                )
+            }
+            df <- df[which(gsub("([0-9]+).*$", "\\1",df$CNAE) %in% codigos_a_extraer),]
+        }
+        
+        # 4) Filtro por ubicación
+        if(input$calle == "Todas"){
+            df <- df
+        }else{
+            df <- df[grep(input$calle,gsub(",.*","",df$`Domicilio_social`)),]
+        }
+        
+        # 5) Filtro extinguidas
+        if(input$extinguidas == TRUE){
+            df <- df[df$Estado == "Activa",]
+        }else{
+            df <- df
+        }
+        
+        df[df == ""] <- "-"
+        
+        # 6) Filtrad por existencia RRSS
+        if(input$RRSS == 1){
+            df <- df[df$RRSS != "-" ,]
+        }else if(input$RRSS == 2){
+            df <- df[df$RRSS == "-",]
+        }else{
+            df <- df
+        }
+        
+        # 7) Filtrad por palabra clave
+        if(input$palabra_clave != ""){
+            #Filtrado por búsqueda de palabras clave. Se realiza máscara OR con resultados booleanos.
+            filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df, ignore.case = T)),1,any)
+            filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df[,c(1:4)], ignore.case = T)),1,any)
+            df <- subset(df, filtrado_palabra_clave)
+        }else{
+            df <- df
+        }
+        
+        df <- df[,c(1,2,5,6,7,8,10,9,21,11,12,20,23,19,18,16,15,17,13,14,3,4)]
+        
+        df
+        
+    })
+    
+    datos_filtrado_mapa <- reactive({
+        df <- datos_filtrado()
+        
+        # Filtrado por selección de registro en la tabla
+        filtrado_tabla <- input$tabla_censo_rows_selected
+        if(length(filtrado_tabla)){
+            df <-  df[filtrado_tabla, , drop = F]
+        }
+        
+        return(df)
+    })
+    
+    
+    # MAPA
+    output$mapa_censo <- renderLeaflet({
+        
+        df <- datos_filtrado_mapa()
+        
+        df <- df[as.numeric(df$Latitud) > 41,]
+        
+        latitud <- as.numeric(df$Latitud)
+        longitud <- as.numeric(df$Longitud)
+        
+        popup <- paste(
+            "Empresa: ", df$`Denominación_social`,"<br/>", 
+            "CNAE: ", df$CNAE, "<br/>", 
+            "Empleados ", df$Tamaño_empresa_por_empleados, "<br/>",
+            "Facturación: ", df$Tamaño_empresa_por_facturación, "<br/>",
+            sep="") %>%
+            lapply(htmltools::HTML)
+        
+        leaflet() %>% addTiles() %>% addMarkers(lng = longitud, lat = latitud, popup = popup)
+    })
+    
+    # TABLA
+    output$tabla_censo <- renderDataTable({
+        
+        df <- datos_filtrado()
+        
+        # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+        shiny::validate(
+            need(nrow(df) != 0,
+                 "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+        )
+        
+        # Links URL y RRSS
+        df$URL <- paste0("<a href='", df$URL,"' target='_blank'>", df$URL,"</a>")
+        #df$RRSS <- paste0("<a href='", df$RRSS,"' target='_blank'>", df$RRSS,"</a>")
+        
+        pos_urls <- grep("https",df$RRSS)
+        for(i in pos_urls){
+            rrss_separadas <- str_split(df$RRSS[i], ",")[[1]]
+            rrss_separadas <- str_trim(rrss_separadas)
+            rrss_separadas <- unique(rrss_separadas)
+            for(j in 1:length(rrss_separadas)){
+                rrss_separadas[j] <- paste0("<a href='", rrss_separadas[j],"' target='_blank'>", rrss_separadas[j],"</a>")
+            }
+            df$RRSS[i] <- paste(rrss_separadas, collapse = ", ")
+        }
+        
+        # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+        shiny::validate(
+            need(nrow(df) != 0,
+                 "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+        )
+        
+        df <- datatable(df, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
+                                           columnDefs = list(list(className = 'dt-center', targets = "_all")),
+                                           scrollX=TRUE, 
+                                           scrollCollapse=TRUE,
+                                           fixedHeader = TRUE,
+                                           dom = 'lBfrtip', 
+                                           buttons = c('copy', 'csv', 'excel', 'pdf',I('colvis'))),escape = F)
+        
+    })
+    
+    #Descarga de datos
+    output$downloadDatacenso_csv <- downloadHandler(
+        
+        filename = paste0("Censo_filtrado","_",Sys.Date(),".csv"),
+        content  = function(file) {
+            if(input$tabs_censo == "Aranda de Duero"){
+                df <- datos_filtrado_mapa()
+            }else{
+                df <- datos_filtrado_mapa_bodegas()
+            }
+            
+            write.csv(df, file, eol="\n", sep = ",", row.names = TRUE)
+        })
 }
 
 # Run the application 
