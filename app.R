@@ -41,7 +41,7 @@ df_censo <- read.csv("censo_Ermua.csv", header = TRUE, sep = ";", stringsAsFacto
 #====================
 # REFERENCIA CNAES
 #====================
-df_cnae <- read.csv("referencia_CNAEs.csv", header = TRUE, sep = ";")
+df_cnae <- read.csv("referencia_CNAEs.csv", header = TRUE, sep = ";", encoding = "latin1")
 df_cnae <- df_cnae[,c(1,3)]
 df_cnae$completo <- paste(df_cnae[,1],df_cnae[,2], sep = " ")
 
