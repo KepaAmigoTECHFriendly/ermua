@@ -456,7 +456,7 @@ N_lectura_borme <- function(municipio, radio, provincias, fecha = Sys.Date()){
         
         #Coordenadas de referencia del municipio con geocoder API
         #Endpoint geocoder API
-        geocoder_endpoint <- "https://geocoder.api.here.com/6.2/geocode.json?app_id=HRwFz9rfbtRq63qGH4ZQ&app_code=aMRd84WGRs4h1591F-g82w&searchtext="
+        geocoder_endpoint <- "https://geocoder.ls.hereapi.com/6.2/geocode.json?apiKey=Xey7gbg0XzIeEeLVFheau032gFXySwY1oQOlhpVZn34&searchtext="
         
         coordenadas_ref_municipio <- jsonlite::fromJSON(paste(geocoder_endpoint,municipio,"%20(Espa%C3%B1a)",sep = ""))
         coordenadas_ref_municipio <- coordenadas_ref_municipio$Response$View$Result %>% as.data.frame()
