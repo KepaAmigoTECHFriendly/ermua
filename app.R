@@ -36,8 +36,8 @@ source("llamada_api_thb_contratacionesEstado.R")
 # CENSO EMPRESAS
 #==================
 # CENSO
-df_censo <- read.csv("censo_Ermua.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
-
+df_censo <- read.csv("censo_munis.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+df_censo <- df_censo[,-1]
 #====================
 # REFERENCIA CNAES
 #====================
