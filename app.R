@@ -38,6 +38,9 @@ source("llamada_api_thb_contratacionesEstado.R")
 # CENSO
 df_censo <- read.csv("censo_munis.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
 df_censo <- df_censo[,-1]
+
+df_censo$Latitud <- gsub("[,]",".",df_censo$Latitud)
+df_censo$Longitud <- gsub("[,]",".",df_censo$Longitud)
 #====================
 # REFERENCIA CNAES
 #====================
