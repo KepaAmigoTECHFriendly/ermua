@@ -64,6 +64,45 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
     
     navbarPage(id ="menu", "Menú Inteligencia Competitiva",
                
+               tabPanel("Censo de empresas",
+                        sidebarLayout(
+                            sidebarPanel(
+                                dateRangeInput("fechas","Filtro por intervalo de fechas",start = "1960-01-01", end = Sys.Date()),
+                                textInput("palabra_clave", "Búsqueda por palabra clave"),
+                                selectInput("calle", "Filtro por ubicación",
+                                            c("Todas",gsub("[(].*","",gsub(",.*","",unique(df_censo$`Domicilio_social`)))[order(gsub(",.*","",unique(df_censo$`Domicilio_social`)))])),
+                                sliderInput("empleados", "Filtro por rango de empleados",0,max(na.omit(as.numeric(unique(gsub("[ (].*","",df_censo$Empleados))))),c(0,100),step = 1
+                                ),
+                                selectInput("div_cnae", "Filtro por CNAE",
+                                            #c("Todos",substring(unique(df_censo$CNAE),1,2)[order(substring(unique(df_censo$CNAE),1,2))][-1])
+                                            c("Todos",df_cnae$completo), multiple = TRUE, selected = "Todos"
+                                ),
+                                #div(style = "color: black; font-size:14px; font-weight: bold;","Filtro redes sociales"),
+                                radioButtons("RRSS", "Filtro por redes sociales",
+                                             choices = list("Con RRSS" = 1, "Sin RRSS" = 2,
+                                                            "Todas" = 3), selected = 3),
+                                div(style = "color: black; font-size:14px; font-weight: bold;","Filtro empresas extintas"),
+                                checkboxInput("extinguidas", "Ocultar empresas extintas", value = TRUE, width = NULL),
+                                downloadButton("downloadDatacenso_csv", "Descargar CSV"),
+                                width = 3,
+                            ),
+                            
+                            mainPanel(
+                                tabsetPanel(id = "tabs_censo",
+                                            tabPanel(id = "censo","Censo de empresas",
+                                                     fluidRow(
+                                                         leafletOutput("mapa_censo", height = 500)
+                                                     ),
+                                                     br(),
+                                                     fluidRow(
+                                                         dataTableOutput("tabla_censo")
+                                                     )
+                                            )
+                                )
+                            )
+                        )
+               ), #Cierre panel censo
+               
                tabPanel("Lectura BORME",
                         sidebarLayout(
                             
@@ -283,45 +322,6 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                             )
                         )
                ),
-               
-               tabPanel("Censo de empresas",
-                        sidebarLayout(
-                            sidebarPanel(
-                                dateRangeInput("fechas","Filtro por intervalo de fechas",start = "1960-01-01", end = Sys.Date()),
-                                textInput("palabra_clave", "Búsqueda por palabra clave"),
-                                selectInput("calle", "Filtro por ubicación",
-                                            c("Todas",gsub("[(].*","",gsub(",.*","",unique(df_censo$`Domicilio_social`)))[order(gsub(",.*","",unique(df_censo$`Domicilio_social`)))])),
-                                sliderInput("empleados", "Filtro por rango de empleados",0,max(na.omit(as.numeric(unique(gsub("[ (].*","",df_censo$Empleados))))),c(0,100),step = 1
-                                ),
-                                selectInput("div_cnae", "Filtro por CNAE",
-                                            #c("Todos",substring(unique(df_censo$CNAE),1,2)[order(substring(unique(df_censo$CNAE),1,2))][-1])
-                                            c("Todos",df_cnae$completo), multiple = TRUE, selected = "Todos"
-                                ),
-                                #div(style = "color: black; font-size:14px; font-weight: bold;","Filtro redes sociales"),
-                                radioButtons("RRSS", "Filtro por redes sociales",
-                                             choices = list("Con RRSS" = 1, "Sin RRSS" = 2,
-                                                            "Todas" = 3), selected = 3),
-                                div(style = "color: black; font-size:14px; font-weight: bold;","Filtro empresas extintas"),
-                                checkboxInput("extinguidas", "Ocultar empresas extintas", value = TRUE, width = NULL),
-                                downloadButton("downloadDatacenso_csv", "Descargar CSV"),
-                                width = 3,
-                            ),
-                            
-                            mainPanel(
-                                tabsetPanel(id = "tabs_censo",
-                                            tabPanel(id = "censo","Censo de empresas",
-                                                     fluidRow(
-                                                         leafletOutput("mapa_censo", height = 500)
-                                                     ),
-                                                     br(),
-                                                     fluidRow(
-                                                         dataTableOutput("tabla_censo")
-                                                     )
-                                            )
-                                )
-                            )
-                        )
-               ), #Cierre panel censo
                
                tabPanel("Redes sociales",
                         sidebarLayout(
