@@ -605,10 +605,17 @@ server <- function(input, output, session) {
     
     # Carga de datos BBDD CENSO
     observeEvent(input$Municipio_censo, {
-        
-        df_censo <- dbGetQuery(con, paste("SELECT * FROM censo_empresas WHERE \"Municipio\" = '", input$Municipio_censo,"'",sep = ""))
+        progress <- Progress$new(session)
+        long <- 1:length(input$Municipio_censo)
+        avance_barra <- rescale(long,c(0.2,1.0))
+        df_censo <- data.frame(NULL)
+        for(i in 1:length(input$Municipio_censo)){
+            progress$set(value = avance_barra[i], message = 'Cargando datos...')
+            df <- dbGetQuery(con, paste("SELECT * FROM censo_empresas WHERE \"Municipio\" = '", input$Municipio_censo[i],"'",sep = ""))
+            df_censo <- rbind(df_censo,df)
+        }
         datos$censo_empresas = df_censo
-        
+        progress$close()
     })
 
 
