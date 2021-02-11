@@ -456,8 +456,9 @@ server <- function(input, output, session) {
             datos_borme <- df
             
             datos_borme <- datos_borme[,c(1,2,5,6,24,34,35,59,60,61,62,63,64,65,66,41,37,38,39,40,43,44,58,70,71,72,76,77)]
-
-            #datos_borme$Municipio[tolower(datos_borme$`Denominación social`) %in% gsub(" sa"," sociedad anonima",gsub(" sl"," sociedad limitada",tolower(gsub("[.]","",df_censo$Denominación_social))))] <- "Ermua"
+            
+            df_censo_ermua <- dbGetQuery(con, "SELECT * FROM censo_empresas WHERE \"Municipio\" = 'Ermua'")
+            datos_borme$Municipio[tolower(datos_borme$`Denominación social`) %in% gsub(" sa"," sociedad anonima",gsub(" sl"," sociedad limitada",tolower(gsub("[.]","",df_censo_ermua$Denominación_social))))] <- "Ermua"
             
             progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
             progress$close()
@@ -570,8 +571,9 @@ server <- function(input, output, session) {
                 long <- 1:2
                 avance_barra <- rescale(long,c(0.5,1.0))
                 progress$set(value = 0.5, message = 'Procesando datos.\nPuede tardar varios segundos.')
-
-                #datos_borme$Municipio[tolower(datos_borme$`Denominación social`) %in% gsub(" sa"," sociedad anonima",gsub(" sl"," sociedad limitada",tolower(gsub("[.]","",df_censo$Denominación_social))))] <- "Ermua"
+                
+                df_censo_ermua <- dbGetQuery(con, "SELECT * FROM censo_empresas WHERE \"Municipio\" = 'Ermua'")
+                datos_borme$Municipio[tolower(datos_borme$`Denominación social`) %in% gsub(" sa"," sociedad anonima",gsub(" sl"," sociedad limitada",tolower(gsub("[.]","",df_censo_ermua$Denominación_social))))] <- "Ermua"
 
                 progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
                 progress$close()
@@ -860,11 +862,13 @@ server <- function(input, output, session) {
             need(is.data.frame(df) | df == 0 | df == 1 | df == 2,
                  "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea.")
         )
-
-        if(df == 0 | df == 1 | df == 2){
-            return(df)
+        
+        if(!is.data.frame(df)){
+            if(df == 0 | df == 1 | df == 2){
+                return(df)
+            } 
         }
-
+        
         #Recuento por mes y forma jurídica
         df <- df %>%
             group_by(`Forma Jurídica`, Mes) %>%
@@ -2010,6 +2014,9 @@ server <- function(input, output, session) {
             dplyr::group_by(`Forma Jurídica`,Mes) %>%
             dplyr::ungroup() %>%
             tidyr::complete(`Forma Jurídica`, Mes, fill = list(Recuento = 0))
+        
+        df <- df[!is.na(df$`Forma Jurídica`),]
+        df8 <- df8[!is.na(df$`Forma Jurídica`),]
 
         # generación de nuvas formas jurídicas (forma + año) y paso de año-mes a mes
         df8$`Forma Jurídica` <- paste(df8$`Forma Jurídica`,substring(df8$Mes,1,4),sep = "-")
@@ -2018,6 +2025,11 @@ server <- function(input, output, session) {
         df$Mes <- substring(df$Mes,6,7)
 
         df <- rbind(df8,df)
+        df <- df[!duplicated(df[c(1,2)]),]
+        df <- df[order(df$Mes),]
+        
+
+        #df <- df[as.numeric(rownames(unique(df[,c(1,2)]))),] 
 
         # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
         shiny::validate(
@@ -2308,6 +2320,8 @@ server <- function(input, output, session) {
     datos_filtrado <- reactive({
 
         df <- datos$censo_empresas
+        
+        print(colnames(df))
 
         # 1) Filtro por intervalo de fechas
         df <- df[as.Date(as.character(df$`Fecha_constitución`), "%d/%m/%Y") >= as.Date(input$fechas[1]) &
