@@ -2016,7 +2016,7 @@ server <- function(input, output, session) {
             tidyr::complete(`Forma Jurídica`, Mes, fill = list(Recuento = 0))
         
         df <- df[!is.na(df$`Forma Jurídica`),]
-        df8 <- df8[!is.na(df$`Forma Jurídica`),]
+        #df8 <- df8[!is.na(df$`Forma Jurídica`),]
 
         # generación de nuvas formas jurídicas (forma + año) y paso de año-mes a mes
         df8$`Forma Jurídica` <- paste(df8$`Forma Jurídica`,substring(df8$Mes,1,4),sep = "-")
