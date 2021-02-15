@@ -37,7 +37,6 @@ db_port     <- '5432'
 db_user     <- 'postgres'
 db_password <- 'postgressysadmin_2019'
 
-con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
 
 
 
@@ -45,14 +44,9 @@ con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port,
 # CENSO EMPRESAS
 #==================
 # CENSO
-#df_censo <- read.csv("censo_munis.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
-#df_censo <- df_censo[,-1]
-
-#df_censo$Latitud <- gsub("[,]",".",df_censo$Latitud)
-#df_censo$Longitud <- gsub("[,]",".",df_censo$Longitud)
-
-
+con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
 municipios_ref_censo <- dbGetQuery(con, "SELECT DISTINCT \"Municipio\" FROM censo_empresas")[,1]
+con %>% dbDisconnect()
 #====================
 # REFERENCIA CNAES
 #====================
@@ -106,13 +100,34 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
     useShinyjs(),
     useShinyalert(),
     withMathJax(),
-        # Título panel
+    
+    # Evitar escribir en la entrada de fechas
+    tags$script('
+      $(document).ready(function(){
+        
+        $("#fechas_listado_borme input").bsDatepicker({
+          autoclose: true
+        });
+        $("#fechas_listado_borme").attr("onkeydown", "return false");
+      });
+    '),
+    tags$script('
+      $(document).ready(function(){
+        
+        $("#fechas input").bsDatepicker({
+          autoclose: true
+        });
+        $("#fechas").attr("onkeydown", "return false");
+      });
+    '),
+    
+    # Título panel
     #titlePanel(title=div(img(src="https://s2.static-clubeo.com/uploads/eee-ermua/sponsors/ayuntamiento-de-ermua__nrw5sl.jpg",style = 'width: 70px; high: 140px;'),
                          #"INTELIGENCIA COMPETITIVA ERMUA")),
 
     titlePanel("PANEL DE INTELIGENCIA COMPETITIVA"),
 
-    navbarPage(id ="menu", "Menú Inteligencia Competitiva",
+    navbarPage(id ="menu", "",
 
                tabPanel("BORME",
                         sidebarLayout(
@@ -391,9 +406,7 @@ server <- function(input, output, session) {
 
     # Carga de datos BORME BBDD
     observeEvent(input$fechas_listado_borme, {
-        print("Entro fechas")
-        #show_spinner() # show the spinner
-        #show_modal_spinner() # show the modal window
+        con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
 
         fecha_inicial <- input$fechas_listado_borme[1]
         fecha_final <- input$fechas_listado_borme[2]
@@ -485,6 +498,7 @@ server <- function(input, output, session) {
             
             datos$borme = datos_borme
             progress$close()
+            con %>% dbDisconnect()
         }
     })
 
@@ -493,6 +507,7 @@ server <- function(input, output, session) {
     observeEvent(input$tabs_borme, {
 
         if(input$tabs_borme == "Descripción mensual"){
+            con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
             # Consulta a BBDD
             fecha_inicial <- input$fechas_listado_borme[1]
             fecha_final <- input$fechas_listado_borme[2]
@@ -600,6 +615,7 @@ server <- function(input, output, session) {
 
                 datos$borme_anterior = datos_borme
             }
+            con %>% dbDisconnect()
         }
     })
     
@@ -607,6 +623,7 @@ server <- function(input, output, session) {
     
     # Carga de datos BBDD CENSO
     observeEvent(input$Municipio_censo, {
+        con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
         progress <- Progress$new(session)
         long <- 1:length(input$Municipio_censo)
         avance_barra <- rescale(long,c(0.2,1.0))
@@ -618,6 +635,7 @@ server <- function(input, output, session) {
         }
         datos$censo_empresas = df_censo
         progress$close()
+        con %>% dbDisconnect()
     })
 
 
